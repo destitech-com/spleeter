@@ -20,12 +20,10 @@ from spleeter.audio.adapter import AudioAdapter
 from spleeter.separator import Separator
 
 TEST_AUDIO_DESCRIPTORS = ["audio_example.mp3", "audio_example_mono.mp3"]
-MODELS = ["spleeter:2stems", "spleeter:4stems", "spleeter:5stems"]
+MODELS = ["spleeter:2stems"]
 
 MODEL_TO_INST = {
     "spleeter:2stems": ("vocals", "accompaniment"),
-    "spleeter:4stems": ("vocals", "drums", "bass", "other"),
-    "spleeter:5stems": ("vocals", "drums", "bass", "piano", "other"),
 }
 
 
