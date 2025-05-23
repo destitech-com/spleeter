@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple
 # pylint: disable=import-error
 import tensorflow as tf  # type: ignore
 from tensorflow.signal import hann_window, inverse_stft, stft  # type: ignore
-
+from .functions.unet import unet
 from ..utils.tensor import pad_and_partition, pad_and_reshape
 
 # pylint: enable=import-error
@@ -22,30 +22,6 @@ __license__ = "MIT License"
 
 
 placeholder = tf.compat.v1.placeholder
-
-
-def get_model_function(model_type):
-    """
-    Get tensorflow function of the model to be applied to the input tensor.
-    For instance "unet.softmax_unet" will return the softmax_unet function
-    in the "unet.py" submodule of the current module (spleeter.model).
-
-    Parameters:
-        model_type (str):
-            The relative module path to the model function.
-
-    Returns:
-        Function:
-            A tensorflow function to be applied to the input tensor to get the
-            multitrack output.
-    """
-    relative_path_to_module = ".".join(model_type.split(".")[:-1])
-    model_name = model_type.split(".")[-1]
-    main_module = ".".join((__name__, "functions"))
-    path_to_module = f"{main_module}.{relative_path_to_module}"
-    module = importlib.import_module(path_to_module)
-    model_function = getattr(module, model_name)
-    return model_function
 
 
 class InputProvider(object):
@@ -111,9 +87,6 @@ class EstimatorSpecBuilder(object):
     >>> estimator = tf.estimator.Estimator(model_fn=model_fn, ...)
     """
 
-    # Supported model functions.
-    DEFAULT_MODEL = "unet.unet"
-
     # Supported loss functions.
     L1_MASK = "L1_mask"
     WEIGHTED_L1_MASK = "weighted_L1_mask"
@@ -168,16 +141,8 @@ class EstimatorSpecBuilder(object):
                 If required model_type is not supported.
         """
         input_tensor = self.spectrogram_feature
-        model = self._params.get("model", None)
-        if model is not None:
-            model_type = model.get("type", self.DEFAULT_MODEL)
-        else:
-            model_type = self.DEFAULT_MODEL
-        try:
-            apply_model = get_model_function(model_type)
-        except ModuleNotFoundError:
-            raise ValueError(f"No model function {model_type} found")
-        self._model_outputs = apply_model(
+
+        self._model_outputs = unet(
             input_tensor, self._instruments, self._params["model"]["params"]
         )
 
