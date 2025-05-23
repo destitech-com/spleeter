@@ -25,8 +25,6 @@ from typing import Dict, Optional
 # pyright: reportMissingImports=false
 # pylint: disable=import-error
 import tensorflow as tf  # type: ignore
-from tensorflow.compat.v1.keras.initializers import he_uniform  # type: ignore
-from tensorflow.compat.v1.keras.layers import CuDNNLSTM  # type: ignore
 from tensorflow.keras.layers import (  # type: ignore
     Bidirectional,
     Dense,
@@ -34,6 +32,12 @@ from tensorflow.keras.layers import (  # type: ignore
     Reshape,
     TimeDistributed,
 )
+try:
+    from tensorflow.keras.initializers import he_uniform # type: ignore
+    from tensorflow.keras.layers import LSTM # type: ignore
+except:
+    from tensorflow.compat.v1.keras.initializers import he_uniform  # type: ignore
+    from tensorflow.compat.v1.keras.layers import CuDNNLSTM as LSTM  # type: ignore
 
 from . import apply
 
@@ -70,7 +74,7 @@ def apply_blstm(
 
     def create_bidirectional():
         return Bidirectional(
-            CuDNNLSTM(
+            LSTM(
                 units, kernel_initializer=kernel_initializer, return_sequences=True
             )
         )

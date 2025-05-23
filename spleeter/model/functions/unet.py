@@ -20,7 +20,10 @@ from typing import Any, Dict, Iterable, Optional
 # pylint: disable=import-error
 import tensorflow as tf  # type: ignore
 from tensorflow.compat.v1 import logging  # type: ignore
-from tensorflow.compat.v1.keras.initializers import he_uniform  # type: ignore
+try:
+    from tensorflow.keras.initializers import he_uniform  # type: ignore
+except:
+    from tensorflow.compat.v1.keras.initializers import he_uniform  # type: ignore
 from tensorflow.keras.layers import (  # type: ignore
     ELU,
     BatchNormalization,

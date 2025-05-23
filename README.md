@@ -1,3 +1,21 @@
+conda install cudnn cudatoolkit
+
+copy libdevice.10.... to /home/jloup/Apps/miniconda3/envs/spleeter-np2/cuda/nvvm/libdevice
+
+export XLA_FLAGS=--xla_gpu_cuda_data_dir=/home/jloup/Apps/miniconda3/envs/spleeter-np2/cuda/
+
+
+poetry run pytest -k test_eval
+
+
+
+raw TensorFlow 1.x checkpoint, not a Keras model or SavedModel. 
+
+I have this python file which use tf.estimator which does not exists anymore in latest version (keras is now advised). There is a migration guide which shows the difference between the two here: https://www.tensorflow.org/guide/migrate/migrating_estimator
+Can you do the migration on my file ?
+
+
+
 <img src="https://github.com/deezer/spleeter/raw/master/images/spleeter_logo.png" height="80" />
 
 [![Github actions](https://github.com/deezer/spleeter/workflows/pytest/badge.svg)](https://github.com/deezer/spleeter/actions) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spleeter) [![PyPI version](https://badge.fury.io/py/spleeter.svg)](https://badge.fury.io/py/spleeter) [![Conda](https://img.shields.io/conda/vn/deezer-research/spleeter)](https://anaconda.org/deezer-research/spleeter) [![Docker Pulls](https://img.shields.io/docker/pulls/deezer/spleeter)](https://hub.docker.com/r/deezer/spleeter) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/deezer/spleeter/blob/master/spleeter.ipynb) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/spleeter/community) [![status](https://joss.theoj.org/papers/259e5efe669945a343bad6eccb89018b/status.svg)](https://joss.theoj.org/papers/259e5efe669945a343bad6eccb89018b)
