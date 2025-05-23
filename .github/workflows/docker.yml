@@ -100,7 +100,7 @@ jobs:
       matrix:
         platform: [cpu, gpu]
         distribution: [3.6, 3.7, 3.8]
-        model: [2stems, 4stems, 5stems]
+        model: [2stems, 4stems]
       fail-fast: true
     steps:
       - uses: actions/checkout@v2

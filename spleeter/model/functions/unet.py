@@ -205,39 +205,3 @@ def unet(
     """Model function applier."""
     return apply(apply_unet, input_tensor, instruments, params)
 
-
-def softmax_unet(
-    input_tensor: tf.Tensor, instruments: Iterable[str], params: Dict = {}
-) -> Dict:
-    """
-    Apply softmax to multitrack unet in order to have mask suming to one.
-
-    Parameters:
-        input_tensor (tf.Tensor):
-            Tensor to apply blstm to.
-        instruments (Iterable[str]):
-            Iterable that provides a collection of instruments.
-        params (Dict):
-            (Optional) dict of BLSTM parameters.
-
-    Returns:
-        Dict:
-            Created output tensor dict.
-    """
-    logit_mask_list = []
-    for instrument in instruments:
-        out_name = f"{instrument}_spectrogram"
-        logit_mask_list.append(
-            apply_unet(
-                input_tensor,
-                output_name=out_name,
-                params=params,
-                output_mask_logit=True,
-            )
-        )
-    masks = Softmax(axis=4)(tf.stack(logit_mask_list, axis=4))
-    output_dict = {}
-    for i, instrument in enumerate(instruments):
-        out_name = f"{instrument}_spectrogram"
-        output_dict[out_name] = Multiply(name=out_name)([masks[..., i], input_tensor])
-    return output_dict
