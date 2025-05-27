@@ -42,18 +42,17 @@ class InputProvider(object):
 class WaveformInputProvider(InputProvider):
     @property
     def input_names(self):
-        return ["audio_id", "waveform"]
+        return ["waveform"]
 
     def get_input_dict_placeholders(self):
         shape = (None, self.params["n_channels"])
         features = {
             "waveform": placeholder(tf.float32, shape=shape, name="waveform"),
-            "audio_id": placeholder(tf.string, name="audio_id"),
         }
         return features
 
-    def get_feed_dict(self, features, waveform, audio_id):
-        return {features["audio_id"]: audio_id, features["waveform"]: waveform}
+    def get_feed_dict(self, features, waveform):
+        return {features["waveform"]: waveform}
 
 
 class InputProviderFactory(object):
@@ -130,21 +129,7 @@ class EstimatorSpecBuilder(object):
         self._frame_length = params["frame_length"]
         self._frame_step = params["frame_step"]
 
-    def _build_model_outputs(self):
-        """
-        Created a batch_sizexTxFxn_channels input tensor containing
-        mix magnitude spectrogram, then an output dict from it
-        according to the selected model in internal parameters.
 
-        Raises:
-            ValueError:
-                If required model_type is not supported.
-        """
-        input_tensor = self.spectrogram_feature
-
-        self._model_outputs = unet(
-            input_tensor, self._instruments, self._params["model"]["params"]
-        )
 
     def _build_loss(self, labels: Dict) -> Tuple[tf.Tensor, Dict]:
         """
@@ -249,13 +234,20 @@ class EstimatorSpecBuilder(object):
     @property
     def model_outputs(self):
         if not hasattr(self, "_model_outputs"):
-            self._build_model_outputs()
+            input_tensor = self.spectrogram_feature
+
+            self._model_outputs = unet(
+                input_tensor, self._instruments
+            )
         return self._model_outputs
 
     @property
     def outputs(self):
         if not hasattr(self, "_outputs"):
-            self._build_outputs()
+            output_waveform = {}
+            for instrument, stft_data in self.masked_stfts.items():
+                output_waveform[instrument] = self._inverse_stft(stft_data)
+            self._outputs = output_waveform
         return self._outputs
 
     @property
@@ -447,32 +439,6 @@ class EstimatorSpecBuilder(object):
             output_waveform[instrument] = self._inverse_stft(stft_data)
         return output_waveform
 
-    def _build_output_waveform(self, masked_stft: Dict) -> Dict:
-        """
-        Build output waveform from given output dict in order
-        to be used in prediction context. The configuration
-        building method will be using MWF.
-
-        masked_stft (Dict):
-                Dictionary of estimated spectrogram (key: instrument name,
-                value: estimated spectrogram of the instrument).
-
-        Returns:
-            Dict:
-                Built output waveform.
-        """
-
-        if self._params.get("MWF", False):
-            output_waveform = self._build_mwf_output_waveform()
-        else:
-            output_waveform = self._build_manual_output_waveform(masked_stft)
-        return output_waveform
-
-    def _build_outputs(self):
-        self._outputs = self._build_output_waveform(self.masked_stfts)
-
-        if "audio_id" in self._features:
-            self._outputs["audio_id"] = self._features["audio_id"]
 
     def build_predict_model(self) -> tf.Tensor:
         """
@@ -490,61 +456,7 @@ class EstimatorSpecBuilder(object):
             tf.estimator.ModeKeys.PREDICT, predictions=self.outputs
         )
 
-    def build_evaluation_model(self, labels: Dict) -> tf.Tensor:
-        """
-        Builder interface for creating model instance that aims
-        to perform model evaluation. The output of such estimator
-        will be a dictionary with a key "<instrument>_spectrogram"
-        per separated instrument, associated to the estimated
-        separated instrument magnitude spectrogram.
-
-        Parameters:
-            labels (Dict):
-                Model labels.
-
-        Returns:
-            tf.Tensor:
-                An estimator for performing model evaluation.
-        """
-        loss, metrics = self._build_loss(labels)
-        return tf.estimator.EstimatorSpec(
-            tf.estimator.ModeKeys.EVAL, loss=loss, eval_metric_ops=metrics
-        )
-
-    def build_train_model(self, labels: Dict) -> tf.Tensor:
-        """
-        Builder interface for creating model instance that aims to perform
-        model training. The output of such estimator will be a dictionary
-        with a key "<instrument>_spectrogram" per separated instrument,
-        associated to the estimated separated instrument magnitude spectrogram.
-
-        Parameters:
-            labels (Dict):
-                Model labels.
-
-        Returns:
-            tf.Tensor:
-                An estimator for performing model training.
-        """
-        loss, metrics = self._build_loss(labels)
-        optimizer = self._build_optimizer()
-        train_operation = optimizer.minimize(
-            loss=loss, global_step=tf.compat.v1.train.get_global_step()
-        )
-        return tf.estimator.EstimatorSpec(
-            mode=tf.estimator.ModeKeys.TRAIN,
-            loss=loss,
-            train_op=train_operation,
-            eval_metric_ops=metrics,
-        )
 
 
 def model_fn(features, labels, mode, params):
-    builder = EstimatorSpecBuilder(features, params)
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        return builder.build_predict_model()
-    elif mode == tf.estimator.ModeKeys.EVAL:
-        return builder.build_evaluation_model(labels)
-    elif mode == tf.estimator.ModeKeys.TRAIN:
-        return builder.build_train_model(labels)
-    raise ValueError(f"Unknown mode {mode}")
+    return EstimatorSpecBuilder(features, params).build_predict_model()

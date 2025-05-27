@@ -41,15 +41,13 @@ __author__ = "Deezer Research"
 __license__ = "MIT License"
 
 
-def create_estimator(params: Dict, MWF: bool) -> tf.Tensor:
+def create_estimator(params: Dict) -> tf.Tensor:
     """
     Initialize tensorflow estimator that will perform separation
 
     Parameters:
         params (Dict):
             A dictionary of parameters for building the model
-        MWF (bool):
-            Wiener filter enabled?
 
     Returns:
         tf.Tensor:
@@ -58,7 +56,6 @@ def create_estimator(params: Dict, MWF: bool) -> tf.Tensor:
     # Load model.
     provider: ModelProvider = ModelProvider.default()
     params["model_dir"] = provider.get(params["model_dir"])
-    params["MWF"] = MWF
     # Setup config
     session_config = tf.compat.v1.ConfigProto()
     session_config.gpu_options.per_process_gpu_memory_fraction = 0.7
@@ -76,7 +73,6 @@ class Separator(object):
     def __init__(
         self,
         params_descriptor: str,
-        MWF: bool = False,
         multiprocess: bool = True,
     ) -> None:
         """
@@ -85,14 +81,11 @@ class Separator(object):
         Parameters:
             params_descriptor (str):
                 Descriptor for TF params to be used.
-            MWF (bool):
-                (Optional) `True` if MWF should be used, `False` otherwise.
             multiprocess (bool):
                 (Optional) Enable multi-processing.
         """
         self._params = load_configuration(params_descriptor)
         self._sample_rate = self._params["sample_rate"]
-        self._MWF = MWF
         self._tf_graph = tf.Graph()
         self._prediction_generator: Optional[Generator] = None
         self._input_provider = None
@@ -117,7 +110,7 @@ class Separator(object):
                 Generator of prediction.
         """
         if not self.estimator:
-            self.estimator = create_estimator(self._params, self._MWF)
+            self.estimator = create_estimator(self._params)
 
         def get_dataset():
             return tf.data.Dataset.from_tensors(data)
@@ -137,31 +130,6 @@ class Separator(object):
             task.get()
             task.wait(timeout=timeout)
 
-    def _get_input_provider(self):
-        if self._input_provider is None:
-            self._input_provider = InputProviderFactory.get(self._params)
-        return self._input_provider
-
-    def _get_features(self):
-        if self._features is None:
-            provider = self._get_input_provider()
-            self._features = provider.get_input_dict_placeholders()
-        return self._features
-
-    def _get_builder(self):
-        if self._builder is None:
-            self._builder = EstimatorSpecBuilder(self._get_features(), self._params)
-        return self._builder
-
-    def _get_session(self):
-        if self._session is None:
-            saver = tf.compat.v1.train.Saver()
-            provider = ModelProvider.default()
-            model_directory: str = provider.get(self._params["model_dir"])
-            latest_checkpoint = tf.train.latest_checkpoint(model_directory)
-            self._session = tf.compat.v1.Session()
-            saver.restore(self._session, latest_checkpoint)
-        return self._session
 
     def _separate_tensorflow(
         self, waveform: np.ndarray, audio_descriptor: AudioDescriptor
@@ -182,12 +150,14 @@ class Separator(object):
         """
         if not waveform.shape[-1] == 2:
             waveform = to_stereo(waveform)
+            
+        print(f"{audio_descriptor} waveform shape: {waveform.shape}, {(waveform.min(), waveform.max())}")
+    
         prediction_generator = self._get_prediction_generator(
-            {"waveform": waveform, "audio_id": np.array(audio_descriptor)}
+            {"waveform": waveform}
         )
         # NOTE: perform separation.
         prediction = next(prediction_generator)
-        prediction.pop("audio_id")
         return prediction
 
     def separate(
@@ -273,6 +243,7 @@ class Separator(object):
             bitrate,
             synchronous,
         )
+        return sources
 
     def save_to_file(
         self,

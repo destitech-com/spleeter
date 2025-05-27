@@ -20,7 +20,6 @@ def apply(
     function: Callable,
     input_tensor: tf.Tensor,
     instruments: Iterable[str],
-    params: Optional[Dict] = None,
 ) -> Dict:
     """
     Apply given function to the input tensor.
@@ -43,6 +42,6 @@ def apply(
     for instrument in instruments:
         out_name = f"{instrument}_spectrogram"
         output_dict[out_name] = function(
-            input_tensor, output_name=out_name, params=params or {}
+            input_tensor, output_name=out_name
         )
     return output_dict

@@ -46,47 +46,9 @@ __author__ = "Deezer Research"
 __license__ = "MIT License"
 
 
-def _get_conv_activation_layer(params: Dict) -> Any:
-    """
-    Parameters:
-        params (Dict):
-            Model parameters.
-
-    Returns:
-        Any:
-            Required Activation function.
-    """
-    conv_activation: str = str(params.get("conv_activation"))
-    if conv_activation == "ReLU":
-        return ReLU()
-    elif conv_activation == "ELU":
-        return ELU()
-    return LeakyReLU(0.2)
-
-
-def _get_deconv_activation_layer(params: Dict) -> Any:
-    """
-    Parameters:
-        params (Dict):
-            Model parameters.
-
-    Returns:
-        Any:
-            Required Activation function.
-    """
-    deconv_activation: str = str(params.get("deconv_activation"))
-    if deconv_activation == "LeakyReLU":
-        return LeakyReLU(0.2)
-    elif deconv_activation == "ELU":
-        return ELU()
-    return ReLU()
-
-
 def apply_unet(
     input_tensor: tf.Tensor,
     output_name: str = "output",
-    params: Dict = {},
-    output_mask_logit: bool = False,
 ) -> tf.Tensor:
     """
     Apply a convolutionnal U-net to model a single instrument (one U-net
@@ -99,21 +61,21 @@ def apply_unet(
             (Optional) name of the output, default to 'output'.
         params (Dict):
             (Optional) dict of BLSTM parameters.
-        output_mask_logit (bool):
-            (Optional) Sigmoid or logit?
 
     Returns:
         tf.Tensor:
             Output tensor.
     """
+
     logging.info(f"Apply unet for {output_name}")
-    conv_n_filters = params.get("conv_n_filters", [16, 32, 64, 128, 256, 512])
-    conv_activation_layer = _get_conv_activation_layer(params)
-    deconv_activation_layer = _get_deconv_activation_layer(params)
+    conv_n_filters = [16, 32, 64, 128, 256, 512]
+    conv_activation_layer = LeakyReLU(0.2)
+    deconv_activation_layer = ReLU()
     kernel_initializer = he_uniform(seed=50)
     conv2d_factory = partial(
         Conv2D, strides=(2, 2), padding="same", kernel_initializer=kernel_initializer
     )
+    print(f"input_tensor shape: {input_tensor.shape}")
     # First layer.
     conv1 = conv2d_factory(conv_n_filters[0], (5, 5))(input_tensor)
     batch1 = BatchNormalization(axis=-1)(conv1)
@@ -179,29 +141,22 @@ def apply_unet(
     up6 = deconv_activation_layer(up6)
     batch12 = BatchNormalization(axis=-1)(up6)
     # Last layer to ensure initial shape reconstruction.
-    if not output_mask_logit:
-        up7 = Conv2D(
-            2,
-            (4, 4),
-            dilation_rate=(2, 2),
-            activation="sigmoid",
-            padding="same",
-            kernel_initializer=kernel_initializer,
-        )((batch12))
-        output = Multiply(name=output_name)([up7, input_tensor])
-        return output
-    return Conv2D(
+    up7 = Conv2D(
         2,
         (4, 4),
         dilation_rate=(2, 2),
+        activation="sigmoid",
         padding="same",
         kernel_initializer=kernel_initializer,
     )((batch12))
+    output = Multiply(name=output_name)([up7, input_tensor])
+    print(f"output shape: {output.shape}")
+    return output
 
 
 def unet(
-    input_tensor: tf.Tensor, instruments: Iterable[str], params: Optional[Dict] = None
+    input_tensor: tf.Tensor, instruments: Iterable[str]
 ) -> Dict:
     """Model function applier."""
-    return apply(apply_unet, input_tensor, instruments, params)
+    return apply(apply_unet, input_tensor, instruments)
 

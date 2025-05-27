@@ -8,6 +8,7 @@ __author__ = "Deezer Research"
 __license__ = "MIT License"
 
 import itertools
+import pickle
 from os.path import basename, exists, join, splitext
 from tempfile import TemporaryDirectory
 
@@ -40,6 +41,11 @@ def test_separate(test_file, configuration):
     instruments = MODEL_TO_INST[configuration]
     adapter = AudioAdapter.default()
     waveform, _ = adapter.load(test_file)
+
+    #save waveform to pickle file
+    with open("waveform.pkl", "wb") as f:
+        pickle.dump(waveform, f)
+
     separator = Separator(configuration, multiprocess=False)
     prediction = separator.separate(waveform, test_file)
     assert len(prediction) == len(instruments)

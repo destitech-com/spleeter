@@ -85,34 +85,6 @@ ModelParametersOption: str = Option(
     help="JSON filename that contains params",
 )
 
-
-MWFOption: bool = Option(
-    False, "--mwf", help="Whether to use multichannel Wiener filtering for separation"
-)
-
-MUSDBDirectoryOption: str = Option(
-    ...,
-    "--mus_dir",
-    exists=True,
-    dir_okay=True,
-    file_okay=False,
-    readable=True,
-    resolve_path=True,
-    help="Path to musDB dataset directory",
-)
-
-TrainingDataDirectoryOption: str = Option(
-    ...,
-    "--data",
-    "-d",
-    exists=True,
-    dir_okay=True,
-    file_okay=False,
-    readable=True,
-    resolve_path=True,
-    help="Path of the folder containing audio data for training",
-)
-
 VerboseOption: bool = Option(False, "--verbose", help="Enable verbose logs")
 
 

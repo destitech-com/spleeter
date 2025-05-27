@@ -177,7 +177,16 @@ class FFMPEGProcessAudioAdapter(AudioAdapter):
             .run_async(pipe_stdin=True, pipe_stderr=True, quiet=True)
         )
         try:
-            process.stdin.write(data.astype("<f4").tobytes())
+            # Ensure data is a numpy array and convert to float32
+            if hasattr(data, 'numpy'):
+                # Handle TensorFlow tensors
+                numpy_data = data.numpy()
+            else:
+                numpy_data = np.asarray(data)
+            
+            # Convert to little-endian float32 for FFMPEG
+            float32_data = numpy_data.astype(np.float32)
+            process.stdin.write(float32_data.tobytes())
             process.stdin.close()
             process.wait()
         except IOError:

@@ -111,7 +111,6 @@ pretrained_models
 docs/build
 .vscode
 spleeter-feedstock/
-*FAKE_MUSDB_DIR
 
 output/
 useless_config.json
